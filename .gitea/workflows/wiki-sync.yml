@@ -10,23 +10,28 @@ jobs:
   update-wiki:
     runs-on: ubuntu-latest
     steps:
+      # === 1. Клонирование основного репозитория ===
       - name: Checkout main repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # Безопасная настройка SSH в Doker контейнере
-      - name: Setup SSH for Gitea
+      # === 2. Настройка SSH из секрета Gitea ===
+      - name: Configure SSH key for Gitea
         run: |
           mkdir -p ~/.ssh
+          echo "${{ secrets.WIKI_SYNC_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan git.q-use.ru >> ~/.ssh/known_hosts
           chmod 700 ~/.ssh
           chmod 644 ~/.ssh/known_hosts
 
+      # === 3. Клонирование Wiki через SSH ===
       - name: Clone Wiki repository via SSH
         run: |
           git clone git@git.q-use.ru:lottoprof/TRS.wiki.git wiki_repo
 
+      # === 4. Определение и переключение ветки Wiki ===
       - name: Detect and checkout Wiki branch
         run: |
           cd wiki_repo
@@ -43,10 +48,12 @@ jobs:
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
           echo "Detected Wiki branch: $BRANCH"
 
+      # === 5. Синхронизация содержимого Wiki ===
       - name: Sync wiki content
         run: |
           rsync -av --delete --exclude='.git' wiki/ wiki_repo/
 
+      # === 6. Коммит и пуш в Wiki ===
       - name: Commit and push to wiki
         run: |
           cd wiki_repo
