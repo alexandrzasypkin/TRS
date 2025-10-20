@@ -9,77 +9,65 @@ on:
 jobs:
   update-wiki:
     runs-on: ubuntu-latest
+
     steps:
-      # === 1. Клонирование основного репозитория ===
       - name: Checkout main repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # === 2. Настройка SSH из секрета Gitea ===
       - name: Configure SSH key for Gitea
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.WIKI_SYNC_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan git.q-use.ru >> ~/.ssh/known_hosts
-          chmod 700 ~/.ssh
-          chmod 644 ~/.ssh/known_hosts
 
-      - name: Debug SSH key format
-          run: |
-            mkdir -p ~/.ssh
-            echo "${{ secrets.WIKI_SYNC_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-            echo "Key saved, checking content:"
-            head -n 2 ~/.ssh/id_ed25519
-            tail -n 2 ~/.ssh/id_ed25519
-            echo "Line count:" $(wc -l < ~/.ssh/id_ed25519)
-            chmod 600 ~/.ssh/id_ed25519
-            ssh-keyscan git.q-use.ru >> ~/.ssh/known_hosts
-            ssh -T git@git.q-use.ru || true
+      - name: Debug SSH key format (temporary)
+        run: |
+          echo "Key saved, checking content:"
+          head -n 2 ~/.ssh/id_ed25519
+          tail -n 2 ~/.ssh/id_ed25519
+          echo "Line count:" $(wc -l < ~/.ssh/id_ed25519)
+          ssh -T git@git.q-use.ru || true
 
-
-      # === 3. Клонирование Wiki через SSH ===
       - name: Clone Wiki repository via SSH
         run: |
           git clone git@git.q-use.ru:lottoprof/TRS.wiki.git wiki_repo
 
-          # === 4. Определение и переключение ветки Wiki ===
       - name: Detect and checkout Wiki branch
+        id: branch
         run: |
           cd wiki_repo
           if git show-ref --verify --quiet refs/remotes/origin/main; then
-          BRANCH="main"
+            BRANCH="main"
           elif git show-ref --verify --quiet refs/remotes/origin/master; then
-          BRANCH="master"
+            BRANCH="master"
           else
-          BRANCH="main"
-          git checkout -b main
+            BRANCH="main"
+            git checkout -b main
           fi
           git checkout $BRANCH
           git branch --set-upstream-to=origin/$BRANCH $BRANCH || true
-          echo "BRANCH=$BRANCH" >> $GITHUB_ENV
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
           echo "Detected Wiki branch: $BRANCH"
 
-      # === 5. Синхронизация содержимого Wiki ===
       - name: Sync wiki content
         run: |
           rsync -av --delete --exclude='.git' wiki/ wiki_repo/
 
-      # === 6. Коммит и пуш в Wiki ===
       - name: Commit and push to wiki
         run: |
           cd wiki_repo
           git config user.name "gitea-actions[bot]"
           git config user.email "bot@q-use.ru"
-
           git add .
           if git diff --staged --quiet; then
             echo "No changes to commit in wiki."
           else
-            COMMIT_MSG="Auto-update wiki from main repo ($GITHUB_SHA)"
+            COMMIT_MSG="Auto-update wiki from main repo (${{ github.sha }})"
             git commit -m "$COMMIT_MSG"
-            git push origin $BRANCH
+            git push origin ${{ steps.branch.outputs.branch }}
             echo "Wiki updated successfully!"
           fi
 
