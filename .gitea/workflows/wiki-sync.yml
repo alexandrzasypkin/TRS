@@ -23,13 +23,10 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan git.q-use.ru >> ~/.ssh/known_hosts
 
-      - name: Debug SSH key format (temporary)
+      - name: Install rsync
         run: |
-          echo "Key saved, checking content:"
-          head -n 2 ~/.ssh/id_ed25519
-          tail -n 2 ~/.ssh/id_ed25519
-          echo "Line count:" $(wc -l < ~/.ssh/id_ed25519)
-          ssh -T git@git.q-use.ru || true
+          apt-get update -qq
+          apt-get install -y rsync
 
       - name: Clone Wiki repository via SSH
         run: |
@@ -70,4 +67,3 @@ jobs:
             git push origin ${{ steps.branch.outputs.branch }}
             echo "Wiki updated successfully!"
           fi
-
