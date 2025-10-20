@@ -26,22 +26,35 @@ jobs:
           chmod 700 ~/.ssh
           chmod 644 ~/.ssh/known_hosts
 
+      - name: Debug SSH key format
+          run: |
+            mkdir -p ~/.ssh
+            echo "${{ secrets.WIKI_SYNC_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+            echo "Key saved, checking content:"
+            head -n 2 ~/.ssh/id_ed25519
+            tail -n 2 ~/.ssh/id_ed25519
+            echo "Line count:" $(wc -l < ~/.ssh/id_ed25519)
+            chmod 600 ~/.ssh/id_ed25519
+            ssh-keyscan git.q-use.ru >> ~/.ssh/known_hosts
+            ssh -T git@git.q-use.ru || true
+
+
       # === 3. Клонирование Wiki через SSH ===
       - name: Clone Wiki repository via SSH
         run: |
           git clone git@git.q-use.ru:lottoprof/TRS.wiki.git wiki_repo
 
-      # === 4. Определение и переключение ветки Wiki ===
+          # === 4. Определение и переключение ветки Wiki ===
       - name: Detect and checkout Wiki branch
         run: |
           cd wiki_repo
           if git show-ref --verify --quiet refs/remotes/origin/main; then
-            BRANCH="main"
+          BRANCH="main"
           elif git show-ref --verify --quiet refs/remotes/origin/master; then
-            BRANCH="master"
+          BRANCH="master"
           else
-            BRANCH="main"
-            git checkout -b main
+          BRANCH="main"
+          git checkout -b main
           fi
           git checkout $BRANCH
           git branch --set-upstream-to=origin/$BRANCH $BRANCH || true
