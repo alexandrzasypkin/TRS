@@ -15,6 +15,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Безопасная настройка SSH в Doker контейнере
+      - name: Setup SSH for Gitea
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan git.q-use.ru >> ~/.ssh/known_hosts
+          chmod 700 ~/.ssh
+          chmod 644 ~/.ssh/known_hosts
+
       - name: Clone Wiki repository via SSH
         run: |
           git clone git@git.q-use.ru:lottoprof/TRS.wiki.git wiki_repo
