@@ -2,7 +2,7 @@ name: Sync Wiki to Gitea Wiki
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
     paths:
       - 'wiki/**'
 
