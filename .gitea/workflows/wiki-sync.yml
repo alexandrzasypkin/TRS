@@ -1,0 +1,58 @@
+name: Sync Wiki to Gitea Wiki
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'wiki/**'
+
+jobs:
+  update-wiki:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Clone Wiki repository via SSH
+        run: |
+          git clone git@git.q-use.ru:lottoprof/TRS.wiki.git wiki_repo
+
+      - name: Detect and checkout Wiki branch
+        id: branch
+        run: |
+          cd wiki_repo
+          if git show-ref --verify --quiet refs/remotes/origin/main; then
+            BRANCH="main"
+          elif git show-ref --verify --quiet refs/remotes/origin/master; then
+            BRANCH="master"
+          else
+            BRANCH="main"
+            git checkout -b main
+          fi
+          git checkout $BRANCH
+          git branch --set-upstream-to=origin/$BRANCH $BRANCH || true
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+          echo "Detected Wiki branch: $BRANCH"
+
+      - name: Sync wiki content
+        run: |
+          rsync -av --delete --exclude='.git' wiki/ wiki_repo/
+
+      - name: Commit and push to wiki
+        run: |
+          cd wiki_repo
+          git config user.name "gitea-actions[bot]"
+          git config user.email "bot@q-use.ru"
+
+          git add .
+          if git diff --staged --quiet; then
+            echo "No changes to commit in wiki."
+          else
+            COMMIT_MSG="Auto-update wiki from main repo (${{ github.sha }})"
+            git commit -m "$COMMIT_MSG"
+            git push origin ${{ steps.branch.outputs.branch }}
+            echo "Wiki updated successfully!"
+          fi
+
