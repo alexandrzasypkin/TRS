@@ -19,7 +19,7 @@ jobs:
       - name: Configure SSH key for Gitea
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.WIKI_SYNC_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          echo "${{ secrets.WIKI_SYNC_PRIVATE_KEY }}" | base64 -d > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan git.q-use.ru >> ~/.ssh/known_hosts
 
