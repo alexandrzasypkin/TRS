@@ -1,5 +1,4 @@
 # Черновик описания в официальной структуре, принятой Роспатентом.
----
 
 ## 🧩 ЧЕРНОВИК ОПИСАНИЯ ПОЛЕЗНОЙ МОДЕЛИ
 
@@ -89,8 +88,45 @@ Routing Core ↔ CA ↔ Public Repository
    Gateway
 ```
 
-Взаимодействие элементов приведено в последовательной диаграмме (см. TRS_13.md, схема “Value Routing”).
+Взаимодействие элементов приведено в последовательной диаграмме
+```mermaid
+graph TD
+    Start[Клиент регистрирует актив] --> Gateway[Gateway подтверждает происхождение]
+    Gateway --> CSR[Формирование CSR с параметрами актива]
+    CSR --> CA[CA проверяет и выпускает Asset Certificate]
+    CA --> Pub1[Публикация в Public Repository]
+    Pub1 --> КлиентA[Клиент A владеет активом]
+    
+    КлиентA --> Transfer{Операция?}
+    
+    Transfer -->|Transfer| P2P[Простая передача]
+    Transfer -->|Atomic Swap| Swap[Встречный обмен]
+    Transfer -->|Split| Division[Деление актива]
+    Transfer -->|Withdrawal| Exit[Вывод через Gateway]
+    
+    P2P --> RC1[Routing Core обрабатывает]
+    Swap --> RC1
+    Division --> RC1
+    
+    RC1 --> CA2[CA отзывает старые сертификаты]
+    CA2 --> CA3[CA выпускает новые сертификаты]
+    CA3 --> Pub2[Публикация в Public Repository]
+    
+    Pub2 --> КлиентБ[Клиент B владеет активом]
+    
+    Exit --> GW2[Gateway конвертирует во внешнюю систему]
+    GW2 --> Revoke[CA отзывает сертификат]
+    Revoke --> End[Актив выведен из TRS]
+    
+    КлиентБ --> Transfer
+    
+    style Gateway fill:#e8f5e9,stroke:#388e3c
+    style CA fill:#fff3e0,stroke:#f57c00
+    style RC1 fill:#e3f2fd,stroke:#1976d2
+    style Pub1 fill:#fce4ec,stroke:#c2185b
+    style Pub2 fill:#fce4ec,stroke:#c2185b
 
+```
 ---
 
 ### 6. Примеры осуществления
