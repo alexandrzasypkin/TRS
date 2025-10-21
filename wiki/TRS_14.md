@@ -89,10 +89,10 @@ flowchart TD
   RC[Routing Core<br/>координация транзакций]:::rc
   CA[CA<br/>выпуск/отзыв X.509]:::ca
   PR[Public Repository<br/>сертификаты, CRL/OCSP]:::repo
-  EXT[Внешние системы<br/>(банк/склад/реестры)]:::ext
+  EXT[Внешние системы<br/>банк/склад/реестры]:::ext
 
   U <-->|X.509 ClientAuth| RC
-  GW <-->|API (REST/gRPC)| RC
+  GW <-->|API - REST/gRPC| RC
   RC <-->|PKI протоколы| CA
   CA -->|CRL/OCSP| PR
   RC -->|публикация результатов| PR
@@ -114,22 +114,23 @@ flowchart TD
 ```mermaid
 %%{init: {'flowchart': { 'layout': 'elk', 'curve': 'linear' }, 'theme': 'base' } }%%
 flowchart LR
-  subgraph REG[Регистрация (Registration)]
-    UA[1) Клиент<br/>формирует CSR] --> GWS[2) Gateway<br/>подписывает CSR]
-    GWS --> RCS[3) Routing Core<br/>проверяет и передаёт в CA]
-    RCS --> CAS[4) CA выпускает<br/>Asset Certificate]
-    CAS --> PRS[5) Публикация<br/>в Repository]
+  subgraph REG[Регистрация / Registration]
+    UA[Клиент<br/>формирует CSR] --> GWS[Gateway<br/>подписывает CSR]
+    GWS --> RCS[Routing Core<br/>проверяет и передаёт в CA]
+    RCS --> CAS[CA выпускает<br/>Asset Certificate]
+    CAS --> PRS[Публикация<br/>в Repository]
   end
-
-  subgraph SWAP[Обмен (Atomic Swap)]
-    U1[1) Сторона A<br/>CSR_A + hash(CSR_B)] --> U2[2) Сторона B<br/>CSR_B + hash(CSR_A)]
-    U2 --> RC2[3) Routing Core<br/>проверяет подписи]
-    RC2 --> CA2[4) CA атомарно:<br/>отзыв старых → выпуск новых]
-    CA2 --> PR2[5) Публикация<br/>CRL / сертификатов]
-  end
-
 ```
-
+```mermaid
+%%{init: {'flowchart': { 'layout': 'elk', 'curve': 'linear' }, 'theme': 'base' } }%%
+flowchart LR
+  subgraph SWAP[Обмен / Atomic Swap]
+    U1[Сторона A<br/>CSR_A + hash_CSR_B] --> U2[Сторона B<br/>CSR_B + hash_CSR_A]
+    U2 --> RC2[Routing Core<br/>проверяет подписи]
+    RC2 --> CA2[CA атомарно:<br/>отзыв старых → выпуск новых]
+    CA2 --> PR2[Публикация<br/>CRL / сертификатов]
+  end
+```
 ---
 
 ### 6. Примеры осуществления
