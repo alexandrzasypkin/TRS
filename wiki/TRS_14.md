@@ -109,7 +109,6 @@ flowchart TD
 Процесс работы 
 Последовательность действий:
 * регистрация актива через Gateway и CA;
-* обмен активами между сторонами через Atomic Swap с атомарным отзывом и выпуском сертификатов.
 
 ```mermaid
 %%{init: {'flowchart': { 'layout': 'elk', 'curve': 'linear' }, 'theme': 'base' } }%%
@@ -121,7 +120,7 @@ flowchart TD
     CAS --> PRS[Публикация<br/>в Repository]
   end
 ```
-
+* обмен активами между сторонами через Atomic Swap с атомарным отзывом и выпуском сертификатов.
 ```mermaid
 %%{init: {'flowchart': { 'layout': 'elk', 'curve': 'linear' }, 'theme': 'base' } }%%
 flowchart LR
