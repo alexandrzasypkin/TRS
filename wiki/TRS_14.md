@@ -113,7 +113,7 @@ flowchart TD
 
 ```mermaid
 %%{init: {'flowchart': { 'layout': 'elk', 'curve': 'linear' }, 'theme': 'base' } }%%
-flowchart LR
+flowchart TD
   subgraph REG[Регистрация / Registration]
     UA[Клиент<br/>формирует CSR] --> GWS[Gateway<br/>подписывает CSR]
     GWS --> RCS[Routing Core<br/>проверяет и передаёт в CA]
@@ -121,6 +121,7 @@ flowchart LR
     CAS --> PRS[Публикация<br/>в Repository]
   end
 ```
+
 ```mermaid
 %%{init: {'flowchart': { 'layout': 'elk', 'curve': 'linear' }, 'theme': 'base' } }%%
 flowchart LR
