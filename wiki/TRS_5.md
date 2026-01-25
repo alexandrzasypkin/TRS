@@ -1037,15 +1037,10 @@ Routing Core → Клиент: [сетевой сбой, ответ потеря
 
 **Реализация:**
 
-```
-Хранилище idempotency_key:
-┌─────────────────────────────────┬─────────────────┬──────────────┐
-│ idempotency_key                 │ result          │ expires_at   │
-├─────────────────────────────────┼─────────────────┼──────────────┤
-│ client-uuid-20251012-143000-... │ {success: true} │ 2025-10-13   │
-│ client-uuid-20251012-143500-... │ {error: ...}    │ 2025-10-13   │
-└─────────────────────────────────┴─────────────────┴──────────────┘
-```
+| idempotency_key | result | expires_at |
+|-----------------|--------|------------|
+| `client-uuid-20251012-143000-...` | `{success: true}` | 2025-10-13 |
+| `client-uuid-20251012-143500-...` | `{error: ...}` | 2025-10-13 |
 
 **Параметры:**
 
@@ -1087,15 +1082,26 @@ Hash Chaining защищает от следующих угроз:
 
 Каждая запись Event Log содержит хеш предыдущей записи:
 
-```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│ Event #N-1  │    │ Event #N    │    │ Event #N+1  │
-│             │    │             │    │             │
-│ hash: H(N-1)│◄───│ prev_hash   │    │ prev_hash   │◄───┐
-│             │    │ hash: H(N)  │◄───│ hash: H(N+1)│    │
-└─────────────┘    └─────────────┘    └─────────────┘    │
-                                                         │
-                   H(N) = SHA256(Event #N content)───────┘
+```mermaid
+flowchart LR
+    subgraph E1["Event #N-1"]
+        H1["hash: H(N-1)"]
+    end
+    
+    subgraph E2["Event #N"]
+        P2["prev_hash"]
+        H2["hash: H(N)"]
+    end
+    
+    subgraph E3["Event #N+1"]
+        P3["prev_hash"]
+        H3["hash: H(N+1)"]
+    end
+    
+    H1 -.->|"ссылка"| P2
+    H2 -.->|"ссылка"| P3
+    
+    SHA["H(N) = SHA256(Event #N content)"] -.->|"вычисление"| H2
 ```
 
 #### Структура записи с Hash Chaining
@@ -1148,16 +1154,15 @@ hash = SHA256(
 
 **Вариант A: Единая цепочка (централизованный Event Log)**
 
-```
-┌─────────────────────────────────────────────────┐
-│              Federated Event Log                │
-│  ┌───┐   ┌───┐   ┌───┐   ┌───┐   ┌───┐        │
-│  │ 1 │──▶│ 2 │──▶│ 3 │──▶│ 4 │──▶│ 5 │──▶ ... │
-│  └───┘   └───┘   └───┘   └───┘   └───┘        │
-└─────────────────────────────────────────────────┘
-       ▲           ▲           ▲
-       │           │           │
-   Node A      Node B      Node C
+```mermaid
+flowchart TB
+    subgraph FEL["Federated Event Log"]
+        E1["1"] --> E2["2"] --> E3["3"] --> E4["4"] --> E5["5"] --> E6["..."]
+    end
+    
+    NodeA["Node A"] -->|"запись"| FEL
+    NodeB["Node B"] -->|"запись"| FEL
+    NodeC["Node C"] -->|"запись"| FEL
 ```
 
 - Все узлы пишут в единый лог
@@ -1166,15 +1171,18 @@ hash = SHA256(
 
 **Вариант B: Связанные цепочки (per-node Event Log)**
 
-```
-Node A:  ┌───┐──▶┌───┐──▶┌───┐──▶...
-         │A1 │   │A2 │   │A3 │
-         └───┘   └───┘   └───┘
-           │               │
-           ▼               ▼
-Node B:  ┌───┐──▶┌───┐──▶┌───┐──▶...
-         │B1 │   │B2 │   │B3 │
-         └───┘   └───┘   └───┘
+```mermaid
+flowchart LR
+    subgraph NodeA["Node A"]
+        A1["A1"] --> A2["A2"] --> A3["A3"] --> A4["..."]
+    end
+    
+    subgraph NodeB["Node B"]
+        B1["B1"] --> B2["B2"] --> B3["B3"] --> B4["..."]
+    end
+    
+    A1 -.->|"кросс-ссылка"| B1
+    A3 -.->|"кросс-ссылка"| B3
 ```
 
 - Каждый узел ведёт свой лог
@@ -1200,26 +1208,34 @@ Node B:  ┌───┐──▶┌───┐──▶┌───┐──�
 
 #### Модель Primary + Replicas
 
-```
-                    ┌─────────────────────┐
-                    │  CA + Routing Core  │
-                    │      (Primary)      │
-                    │   - Event Log       │
-                    │   - Выпуск/отзыв    │
-                    └──────────┬──────────┘
-                               │
-              репликация (push/pull)
-                               │
-       ┌───────────────────────┼───────────────────────┐
-       │                       │                       │
-       ▼                       ▼                       ▼
-┌─────────────┐         ┌─────────────┐         ┌─────────────┐
-│  Replica 1  │         │  Replica 2  │         │  Replica N  │
-│ (Region A)  │         │ (Region B)  │         │ (Region C)  │
-│ - CRL       │         │ - CRL       │         │ - CRL       │
-│ - Certs     │         │ - Certs     │         │ - Certs     │
-│ - OCSP      │         │ - OCSP      │         │ - OCSP      │
-└─────────────┘         └─────────────┘         └─────────────┘
+```mermaid
+flowchart TB
+    subgraph Primary["CA + Routing Core (Primary)"]
+        EL["Event Log"]
+        OP["Выпуск/отзыв"]
+    end
+    
+    Primary -->|"репликация (push/pull)"| R1
+    Primary -->|"репликация (push/pull)"| R2
+    Primary -->|"репликация (push/pull)"| RN
+    
+    subgraph R1["Replica 1 (Region A)"]
+        R1CRL["CRL"]
+        R1Certs["Certs"]
+        R1OCSP["OCSP"]
+    end
+    
+    subgraph R2["Replica 2 (Region B)"]
+        R2CRL["CRL"]
+        R2Certs["Certs"]
+        R2OCSP["OCSP"]
+    end
+    
+    subgraph RN["Replica N (Region C)"]
+        RNCRL["CRL"]
+        RNCerts["Certs"]
+        RNOCSP["OCSP"]
+    end
 ```
 
 **Характеристики:**
@@ -1264,22 +1280,29 @@ Node B:  ┌───┐──▶┌───┐──▶┌───┐──�
 
 **Изолированные домены (рекомендуется):**
 
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   Domain A      │     │   Domain B      │     │   Domain C      │
-│  (Финансы)      │     │  (Товары)       │     │  (Цифровые)     │
-│                 │     │                 │     │                 │
-│  CA_A           │     │  CA_B           │     │  CA_C           │
-│  Event_Log_A    │     │  Event_Log_B    │     │  Event_Log_C    │
-│  Repository_A   │     │  Repository_B   │     │  Repository_C   │
-└────────┬────────┘     └────────┬────────┘     └────────┬────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │  Federated Directory   │
-                    │  (кросс-ссылки, поиск) │
-                    └─────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph DA["Domain A (Финансы)"]
+        CA_A["CA_A"]
+        EL_A["Event_Log_A"]
+        Rep_A["Repository_A"]
+    end
+    
+    subgraph DB["Domain B (Товары)"]
+        CA_B["CA_B"]
+        EL_B["Event_Log_B"]
+        Rep_B["Repository_B"]
+    end
+    
+    subgraph DC["Domain C (Цифровые)"]
+        CA_C["CA_C"]
+        EL_C["Event_Log_C"]
+        Rep_C["Repository_C"]
+    end
+    
+    DA --> FD["Federated Directory<br/>(кросс-ссылки, поиск)"]
+    DB --> FD
+    DC --> FD
 ```
 
 **Преимущества:**
@@ -1364,3 +1387,4 @@ TRS не требует специализированного оборудов�
 [↓ Перейти к следующему разделу](TRS_6.md)
 
 [↑ Вернуться к оглавлению](Home.md)
+
